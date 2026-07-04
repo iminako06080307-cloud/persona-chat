@@ -45,7 +45,7 @@ npm run dev
 
 ## デプロイ
 
-Vercel などの Next.js 対応ホスティングにそのままデプロイできます。環境変数 `ANTHROPIC_API_KEY` を設定してください。
+スマホでそのまま開ける公開URLを作るには、**[DEPLOY.md](./DEPLOY.md)** の手順（Vercel）に従ってください。非エンジニア向けに、APIキーの取得から公開まで順を追って説明しています。環境変数 `ANTHROPIC_API_KEY` を設定するだけで動きます。
 
 ## 注意事項
 

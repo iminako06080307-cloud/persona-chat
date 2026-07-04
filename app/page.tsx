@@ -38,8 +38,8 @@ export default function Page() {
       for (const file of Array.from(files)) {
         if (!file.type.startsWith("image/")) continue;
         if (staged.length + next.length >= MAX_IMAGES) break;
-        const dataUrl = await readFileAsDataUrl(file);
-        next.push({ dataUrl, mediaType: file.type });
+        // スマホの写真は大きい（3〜8MB）ため、送信前に縮小して通信量とトークン代を抑える
+        next.push(await prepareImage(file));
       }
       if (next.length > 0) setStaged((prev) => [...prev, ...next].slice(0, MAX_IMAGES));
     },
@@ -250,6 +250,49 @@ function readFileAsDataUrl(file: File): Promise<string> {
     reader.onload = () => resolve(reader.result as string);
     reader.onerror = () => reject(new Error("画像の読み込みに失敗しました"));
     reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * 画像を送信前にブラウザ側で縮小し、JPEG に変換する。
+ * スマホの大きな写真がサーバーのリクエスト上限を超えて失敗するのを防ぎ、
+ * 画像認識の精度は保ちつつ通信量・トークン代を抑える。
+ * 変換に失敗した場合（HEIC 等でデコード不可）は元画像のまま返す。
+ */
+async function prepareImage(
+  file: File,
+  maxDim = 1280,
+  quality = 0.82
+): Promise<ChatImage> {
+  try {
+    const dataUrl = await readFileAsDataUrl(file);
+    const img = await loadImage(dataUrl);
+    const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+    // 十分小さければそのまま使う
+    if (scale >= 1 && file.size < 1_500_000) {
+      return { dataUrl, mediaType: file.type };
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(img.width * scale);
+    canvas.height = Math.round(img.height * scale);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return { dataUrl, mediaType: file.type };
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const jpeg = canvas.toDataURL("image/jpeg", quality);
+    return { dataUrl: jpeg, mediaType: "image/jpeg" };
+  } catch {
+    // デコードできない形式はそのまま（サーバー側で未対応なら弾かれる）
+    const dataUrl = await readFileAsDataUrl(file);
+    return { dataUrl, mediaType: file.type };
+  }
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("画像のデコードに失敗しました"));
+    img.src = src;
   });
 }
 
