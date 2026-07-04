@@ -7,7 +7,7 @@ import type { ChatImage, ChatMessage } from "@/lib/types";
 const WELCOME: ChatMessage = {
   role: "assistant",
   text:
-    "こんにちは、みなこコーチです😊\n今日も一緒に頑張りましょう！\n食べたものの写真や、気になっていることを送ってくださいね。しっかり見てフィードバックします◎",
+    "こんにちは、美養バランスダイエットのみきです😊\n今日も一緒に、無理なく淡々といきましょう✨\n食べたものの写真や、気になっていることを送ってくださいね。しっかり見てフィードバックします◎",
 };
 
 const MAX_IMAGES = 4;
@@ -116,7 +116,7 @@ export default function Page() {
       <header className={styles.header}>
         <div className={styles.avatar}>み</div>
         <div className={styles.headerText}>
-          <span className={styles.headerName}>みなこコーチ</span>
+          <span className={styles.headerName}>みき（美養バランスダイエット）</span>
           <span className={styles.headerStatus}>
             {isStreaming ? "入力中…" : "オンライン・ダイエット伴走中"}
           </span>

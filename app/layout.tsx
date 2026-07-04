@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "みなこコーチ｜ダイエットサポート",
+  title: "みき｜美養バランスダイエット",
   description:
     "食事の写真を送ると、コーチがフィードバック。サポート期間終了後も伴走を続ける疑似コーチチャット。",
 };
