@@ -19,7 +19,7 @@ const MAX_IMAGES = 8;
  * 経過したときに、それまでの内容をまとめて1回だけ返信します。
  * Vercel の環境変数 NEXT_PUBLIC_REPLY_DELAY_SEC で変更できます（例：900 で15分）。
  */
-const REPLY_DELAY_SEC = Number(process.env.NEXT_PUBLIC_REPLY_DELAY_SEC) || 90;
+const REPLY_DELAY_SEC = Number(process.env.NEXT_PUBLIC_REPLY_DELAY_SEC) || 30;
 const REPLY_DELAY_MS = REPLY_DELAY_SEC * 1000;
 
 export default function Page() {
