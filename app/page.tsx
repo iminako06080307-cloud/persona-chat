@@ -10,26 +10,53 @@ const WELCOME: ChatMessage = {
     "こんにちは、美養バランスダイエットのみきです😊\n今日も一緒に、無理なく淡々といきましょう✨\n食べたものの写真や、気になっていることを送ってくださいね。しっかり見てフィードバックします◎",
 };
 
-const MAX_IMAGES = 4;
+const MAX_IMAGES = 8;
+
+/**
+ * 返信までの待ち時間（秒）。
+ * 実際のコーチのように、送り終わってから「まとめて1回」返信するための猶予。
+ * この時間内に追加で送るとタイマーがリセットされ、最後の送信からこの秒数が
+ * 経過したときに、それまでの内容をまとめて1回だけ返信します。
+ * Vercel の環境変数 NEXT_PUBLIC_REPLY_DELAY_SEC で変更できます（例：900 で15分）。
+ */
+const REPLY_DELAY_SEC = Number(process.env.NEXT_PUBLIC_REPLY_DELAY_SEC) || 90;
+const REPLY_DELAY_MS = REPLY_DELAY_SEC * 1000;
 
 export default function Page() {
   const [messages, setMessages] = useState<ChatMessage[]>([WELCOME]);
   const [input, setInput] = useState("");
   const [staged, setStaged] = useState<ChatImage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [pending, setPending] = useState(false); // 返信待ち（タイマー稼働中）
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const messagesRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // タイマーや非同期処理から常に最新値を読むための ref
+  const messagesDataRef = useRef<ChatMessage[]>(messages);
+  const isStreamingRef = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    messagesDataRef.current = messages;
+  }, [messages]);
+
   const scrollToBottom = useCallback(() => {
-    const el = messagesRef.current;
+    const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, []);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, staged, scrollToBottom]);
+  }, [messages, staged, pending, scrollToBottom]);
+
+  // アンマウント時にタイマーを片付ける
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
 
   const handleFiles = useCallback(
     async (files: FileList | null) => {
@@ -50,29 +77,26 @@ export default function Page() {
     setStaged((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const send = useCallback(async () => {
-    const text = input.trim();
-    if ((text.length === 0 && staged.length === 0) || isStreaming) return;
+  // 実際に API を呼んで、たまっているメッセージにまとめて1回返信する
+  const fireReply = useCallback(async () => {
+    setPending(false);
+    if (isStreamingRef.current) return;
 
-    const userMessage: ChatMessage = {
-      role: "user",
-      text,
-      images: staged.length > 0 ? staged : undefined,
-    };
+    const current = messagesDataRef.current;
+    // 直近が「みき（assistant）」なら、返すべき新しいメッセージがない
+    const last = current[current.length - 1];
+    if (!last || last.role !== "user") return;
 
-    const history = [...messages, userMessage];
-    setMessages([...history, { role: "assistant", text: "" }]);
-    setInput("");
-    setStaged([]);
+    isStreamingRef.current = true;
     setIsStreaming(true);
-    if (textareaRef.current) textareaRef.current.style.height = "auto";
+    setMessages([...current, { role: "assistant", text: "" }]);
 
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         // welcome メッセージは会話履歴として送らない
-        body: JSON.stringify({ messages: history.slice(1) }),
+        body: JSON.stringify({ messages: current.slice(1) }),
       });
 
       if (!res.ok || !res.body) {
@@ -93,9 +117,39 @@ export default function Page() {
       const msg = err instanceof Error ? err.message : "通信エラー";
       appendToLastAssistant(setMessages, `\n[エラー] ${msg}`);
     } finally {
+      isStreamingRef.current = false;
       setIsStreaming(false);
     }
-  }, [input, staged, isStreaming, messages]);
+  }, []);
+
+  const scheduleReply = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setPending(true);
+    timerRef.current = setTimeout(() => {
+      timerRef.current = null;
+      fireReply();
+    }, REPLY_DELAY_MS);
+  }, [fireReply]);
+
+  const send = useCallback(() => {
+    const text = input.trim();
+    if (text.length === 0 && staged.length === 0) return;
+    if (isStreamingRef.current) return; // 返信生成中は送信を控える
+
+    const userMessage: ChatMessage = {
+      role: "user",
+      text,
+      images: staged.length > 0 ? staged : undefined,
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setInput("");
+    setStaged([]);
+    if (textareaRef.current) textareaRef.current.style.height = "auto";
+
+    // すぐには返信せず、送り終わるのを待ってから「まとめて1回」返信する
+    scheduleReply();
+  }, [input, staged, scheduleReply]);
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -111,21 +165,27 @@ export default function Page() {
     el.style.height = Math.min(el.scrollHeight, 120) + "px";
   };
 
+  const status = isStreaming
+    ? "入力中…"
+    : pending
+    ? "確認中です…あとでお返事します"
+    : "オンライン・ダイエット伴走中";
+
   return (
     <div className={styles.app}>
       <header className={styles.header}>
         <div className={styles.avatar}>み</div>
         <div className={styles.headerText}>
           <span className={styles.headerName}>みき（美養バランスダイエット）</span>
-          <span className={styles.headerStatus}>
-            {isStreaming ? "入力中…" : "オンライン・ダイエット伴走中"}
-          </span>
+          <span className={styles.headerStatus}>{status}</span>
         </div>
       </header>
 
-      <div className={styles.messages} ref={messagesRef}>
+      <div className={styles.messages} ref={scrollRef}>
         <p className={styles.intro}>
           食事の写真を送ると、コーチが「良い点」と「次の一歩」をフィードバックします。
+          <br />
+          何枚かに分けて送っても大丈夫。送り終わってから、まとめてお返事します。
         </p>
         {messages.map((m, i) => (
           <MessageRow
@@ -134,6 +194,7 @@ export default function Page() {
             streaming={isStreaming && i === messages.length - 1 && m.role === "assistant"}
           />
         ))}
+        {pending && <PendingRow />}
       </div>
 
       {staged.length > 0 && (
@@ -204,6 +265,7 @@ function MessageRow({
   streaming: boolean;
 }) {
   const isUser = message.role === "user";
+  const text = isUser ? message.text : sanitizeCoachText(message.text);
   return (
     <div className={`${styles.row} ${isUser ? styles.rowUser : ""}`}>
       {!isUser && <div className={styles.rowAvatar}>み</div>}
@@ -221,13 +283,32 @@ function MessageRow({
             ))}
           </div>
         )}
-        <span>{message.text}</span>
-        {streaming && message.text.length === 0 && (
-          <span className={styles.cursor} />
-        )}
+        <span>{text}</span>
+        {streaming && text.length === 0 && <span className={styles.cursor} />}
       </div>
     </div>
   );
+}
+
+function PendingRow() {
+  return (
+    <div className={styles.row}>
+      <div className={styles.rowAvatar}>み</div>
+      <div className={`${styles.bubble} ${styles.coach} ${styles.pendingBubble}`}>
+        <span className={styles.dot} />
+        <span className={styles.dot} />
+        <span className={styles.dot} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * みきの返答が丸ごと引用符（" や 「」）で囲まれてしまう場合に、
+ * 表示時に外側の引用符だけを取り除く。
+ */
+function sanitizeCoachText(t: string): string {
+  return t.replace(/^["“”「『]+/, "").replace(/["“”」』]+$/, "");
 }
 
 function appendToLastAssistant(

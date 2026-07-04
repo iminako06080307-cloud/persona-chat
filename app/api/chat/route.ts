@@ -99,7 +99,7 @@ export async function POST(req: Request) {
       try {
         const claudeStream = client.messages.stream({
           model: MODEL,
-          max_tokens: 2048,
+          max_tokens: 1024,
           system: buildSystemPrompt(),
           messages: apiMessages,
         });
