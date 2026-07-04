@@ -7,7 +7,7 @@ import type { ChatImage, ChatMessage } from "@/lib/types";
 const WELCOME: ChatMessage = {
   role: "assistant",
   text:
-    "こんにちは、美養バランスダイエットのみきです😊\n今日も一緒に、無理なく淡々といきましょう✨\n食べたものの写真や、気になっていることを送ってくださいね。しっかり見てフィードバックします◎",
+    "こんにちは、美養バランスダイエットのみきです😊\n今日も一緒に、無理なく淡々といきましょう✨\n食べたものと分量（例：ご飯150g、鶏むね100g…）や写真を送ってくださいね。カロリーとPFCを出して、フィードバックします◎",
 };
 
 const MAX_IMAGES = 8;
@@ -183,9 +183,9 @@ export default function Page() {
 
       <div className={styles.messages} ref={scrollRef}>
         <p className={styles.intro}>
-          食事の写真を送ると、コーチが「良い点」と「次の一歩」をフィードバックします。
+          食べたものと分量、または写真を送ると、カロリー・PFCの目安を出してフィードバックします。
           <br />
-          何枚かに分けて送っても大丈夫。送り終わってから、まとめてお返事します。
+          何回かに分けて送っても大丈夫。送り終わってから、まとめてお返事します。
         </p>
         {messages.map((m, i) => (
           <MessageRow
