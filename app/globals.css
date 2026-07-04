@@ -1,0 +1,46 @@
+:root {
+  --bg: #eef2f5;
+  --header: #06c755;
+  --header-text: #ffffff;
+  --coach-bubble: #ffffff;
+  --coach-text: #1a1a1a;
+  --user-bubble: #8de055;
+  --user-text: #0f2b0a;
+  --muted: #6b7280;
+  --input-bg: #ffffff;
+  --accent: #06c755;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN",
+    "Hiragino Sans", "Segoe UI", Meiryo, sans-serif;
+  background: var(--bg);
+  color: #1a1a1a;
+  line-height: 1.6;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1720;
+    --coach-bubble: #1e293b;
+    --coach-text: #e5e7eb;
+    --user-text: #0f2b0a;
+    --muted: #9aa4b2;
+    --input-bg: #1e293b;
+  }
+  body {
+    color: #e5e7eb;
+  }
+}
