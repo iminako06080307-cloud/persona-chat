@@ -10,6 +10,7 @@
 - 💬 **LINE風のチャットUI** — スマホから使いやすいモバイルファースト設計
 - 🧑‍🏫 **コーチのペルソナ再現** — 「褒める → 具体的な改善提案 → 励まし」の型を徹底（`lib/persona.ts` で自由に調整可能）
 - ⚡ **リアルタイム応答** — ストリーミングで返答が少しずつ表示される
+- 📣 **Instagram / Threads の自動投稿** — 同じペルソナで投稿の下書きを生成し、スプレッドシートで承認したものだけを Vercel Cron が公式 API で投稿（`lib/sns/`）
 
 ## 技術構成
 
@@ -42,6 +43,21 @@ npm run dev
 - `FEEDBACK_EXAMPLES` … 実際の過去フィードバックを Few-shot 例として追記すると、より忠実に口調を再現できます
 
 実際のコーチ（美養バランスダイエットのみきさん）の LINE トーク履歴からフィードバックの口調・型・分析観点を抽出して反映済みです。`FEEDBACK_EXAMPLES` にさらに実例を追記すると、言い回しの再現度が上がります。
+
+## SNS 自動投稿（Instagram / Threads）
+
+```bash
+npm run generate -- 2          # topics タブのお題 2 件分の下書きを posts タブに追加
+DRY_RUN=1 npm run publish-posts  # approved の行を、投稿せずに内容だけ表示
+npm run publish-posts          # approved の行を実際に投稿
+```
+
+- 下書き生成は `lib/sns/generate.ts`（ペルソナ + SNS 用の形式ルール）
+- 承認ストアは Google スプレッドシート（`lib/sns/store/sheets.ts`）。`posts` タブの `status` を `approved` にすると投稿対象になります
+- 投稿は `lib/sns/instagram.ts` / `lib/sns/threads.ts`（Meta 公式 API のみ）
+- 本番では `vercel.json` の Cron が `/api/cron/generate` と `/api/cron/publish` を 1 日 1 回ずつ呼びます
+
+初回設定（Meta アプリ・トークン・スプレッドシート共有）は **[DEPLOY.md](./DEPLOY.md) の「SNS自動投稿の設定」** を参照してください。
 
 ## デプロイ
 
